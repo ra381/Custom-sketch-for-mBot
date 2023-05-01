@@ -1,0 +1,506 @@
+/**
+ * @file    mBot_Sketch_2-05-2023
+ * @author  Ravinder Singh
+ * @version V1.0.7
+ * @date    30/04/2023
+ * @brief   Description: This file is sample program code for mBot with several extended programs.
+ *          To see how this code works, see the following link: https://www.youtube.com/@SinghRavinderOfficial/shorts
+ *
+ * Function List:
+ *    1. void MatrixGoForward();
+ *    2. void MatrixTurnRight();
+ *    3. void MatrixTurnLeft();
+ *    4. void MatrixGoBack();
+ *    5. void MatrixStop();
+ *    6. void UltrasonicSensorSystem();
+ *    7. void linefinderPLUSultrasonic();
+ *    8. void SmoothingLightSensor();
+ *    9. void RemoveObstacles();
+ *    10. void LFS();
+ *    11. void Ambulance();
+ *    12. void MyTimer();
+ *    13. void SecuritySystem();  
+ *
+ * \par History:
+ * <pre>
+ *    <Author>         <Time>      <Version>              <Descr>                                   <Video Title>                                           <Link video>`
+ * Ravinder Singh    23/12/2022      1.0.0             Build the new.                     mBot just for fun and learn_part 1              https://www.youtube.com/shorts/xNadlQQY688
+ * Ravinder Singh    24/12/2022      1.0.2          Add Manual Control.                            Manual Control                         https://www.youtube.com/watch?v=VeWC6Gc5fdU
+ * Ravinder Singh    25/12/2022      1.0.1         Add line Finder System.                         Line Follower                          https://www.youtube.com/shorts/842uNd4RHJ8
+ * Ravinder Singh    31/12/2022      1.0.2      Add Ultrasonic Sensor System.                    It can't fall down                       https://www.youtube.com/shorts/7WWzslbrNzY
+ * Ravinder Singh    07/01/2023      1.0.3      Add linefinderPLUSultrasonic.               Line Follower and Object Avoidance            https://www.youtube.com/shorts/vQcckLoeNX0
+ * Ravinder Singh    11/03/2023      1.0.4     Extended line finder + ultrasonic.     Line Follower and Object Avoidance (more than 1)    https://www.youtube.com/shorts/91Z0GxtFA0Y
+ * Ravinder Singh    22/04/2023      1.0.5        Add Light Sensor System.                          Light Sensor.                         https://www.youtube.com/shorts/r79G3wO5uHQ
+ * Ravinder Singh    25/12/2022      1.0.6          Add AmbulanceSystem.                      mBot goes such as an ambulance.             https://www.youtube.com/shorts/IZOKFJS7Vsk
+ * Ravinder Singh    25/12/2022      1.0.6         Add Remove  Obstacles.                          Remove Obstacles.                      https://www.youtube.com/shorts/o6fH0GvQMhY
+ * Ravinder Singh    30/04/2023      1.0.7          Added some comments.                                 -                                                     -
+ * </pre>
+ */
+
+
+#include "RsFunctions.h"  // Richiamo al modulo: RsFunctions.h
+ 
+// Includo le librerie necessarie (Funzionabili grazie al Driver CH340)
+#include <MeMCore.h>
+#include <Arduino.h>
+#include <Wire.h>
+#include <SoftwareSerial.h>
+
+//Dichiarazione delle variabili
+MeIR ir;
+MeBuzzer buzzer;
+MeRGBLed rgbled_7(7, 2);
+MeLineFollower lineFinder(PORT_2); 
+MeUltrasonicSensor ultraSensor(PORT_3);
+MeLightSensor lightsensor(PORT_6);
+MeDCMotor motorLeft(M1);
+MeDCMotor motorRight(M2);
+uint8_t motorSpeed = 100;
+
+int SystemControl[6] = {LOW, LOW, LOW, LOW, LOW, LOW}; //Array per tenere in controllo il sistema.
+int AmbulanceSystem = LOW; // Ultima aggiunta (Si può aggiungere un elemento in più al array precedente per evitare questo tipo di scrittura).
+
+char *s = "RS";  // Utilizzo dei puntatori per stampare sulla matrice dei led (Parole/frasi).
+int control = 0; // Variabile di appoggio per il sistema segui-linea: LFS();
+int counter = 0; // Variabile di appoggio per il sistema: linefinderPLUSultrasonic();
+
+void setup() {
+  Serial.begin(9600); // Inizializzazione della comunicazione seriale con la velocità di 9600 baud.
+  ir.begin();         // Inizializzazione della comunicazione con mBot utilizzando il sistema a infrarossi: IR remote control.
+  
+  int frequency = 500;  // Imposto la frequenza a 500 Hz.
+  for(int count=0; count<50; count++){ // Le istruzioni presenti all'interno del ciclo for vengono ripetute 50 volte
+      buzzer.tone(frequency, 50); //questa funzione richiede i seguenti parametri: (frequenza, durata)
+      frequency += 20; // uguale a scrivere frequency = frequency + 20;
+  }
+   
+  ledMx.drawStr(2,7,s);  // visualizzazione del contenuto presente all'interno della variabile s (La variabile è passata per riferimento: cioè alla funzione non passo il valore ma l'indirizzo)
+  rgbled_7.setColor(0,255,255,255);  // Impostare i colori (R, G, B) per entrambi i LED.  
+  rgbled_7.show();                   // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+
+}
+
+void loop(){
+  
+  // in base al segnale proveniente dalla comunicazione IR vengono eseguite le istruzioni:
+  if(ir.keyPressed(IR_BUTTON_0)){Serial.println("Press 0."); buzzer.tone(900, 300); motorSpeed = 93;} 
+  else if(ir.keyPressed(IR_BUTTON_1)){Serial.println("Press 1."); buzzer.tone(900, 300); motorSpeed = 111;} 
+  else if(ir.keyPressed(IR_BUTTON_2)){Serial.println("Press 2."); buzzer.tone(900, 300); motorSpeed = 129;} 
+  else if(ir.keyPressed(IR_BUTTON_3)){Serial.println("Press 3."); buzzer.tone(900, 300); motorSpeed = 147;}
+  else if(ir.keyPressed(IR_BUTTON_4)){Serial.println("Press 4."); buzzer.tone(900, 300); motorSpeed = 165;} 
+  else if(ir.keyPressed(IR_BUTTON_5)){Serial.println("Press 5."); buzzer.tone(900, 300); motorSpeed = 183;}
+  else if(ir.keyPressed(IR_BUTTON_6)){Serial.println("Press 6."); buzzer.tone(900, 300); motorSpeed = 201;} 
+  else if(ir.keyPressed(IR_BUTTON_7)){Serial.println("Press 7."); buzzer.tone(900, 300); motorSpeed = 219;} 
+  else if(ir.keyPressed(IR_BUTTON_8)){Serial.println("Press 8."); buzzer.tone(900, 300); motorSpeed = 237;}
+  else if(ir.keyPressed(IR_BUTTON_9)){Serial.println("Press 9."); buzzer.tone(900, 300); motorSpeed = 255;}
+
+  if(ir.keyPressed(IR_BUTTON_A)){  // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+    Serial.println("Press A.");    // Visualizzazione del messaggio "Press A." sul monitor seriale.
+    buzzer.tone(900, 300);         // Emette un suono ad una frequenza di 900 Hz per 300 ms.
+    //ManualControl =! ManualControl;
+    SystemControl[0] =! SystemControl[0]; // Aggiornamento del contenuto dell'elemento 0 dell'array "SystemControl".
+    rgbled_7.setColor(0,29,0,255); // Imposto i colori (R, G, B) per entrambi i LED.
+    rgbled_7.show();               // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+  }
+  
+  else if(ir.keyPressed(IR_BUTTON_B)){    // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+    Serial.println("Press B.");           // Visualizzazione del messaggio "Press B." sul monitor seriale.
+    buzzer.tone(900, 300);                // Emette un suono ad una frequenza di 900 Hz per 300 ms.
+    //UltrasonicSensorSystem =! UltrasonicSensorSystem;
+    SystemControl[1] =! SystemControl[1]; // Aggiornamento del contenuto dell'elemento 1 dell'array "SystemControl".
+    int LED_R = random(0, 255);           // I valori RGB vengono impostati casualmente
+    int LED_G = random(0, 255);
+    int LED_B = random(0, 255); 
+    rgbled_7.setColor(0, LED_R, LED_G, LED_B); // Il colore di entrambi i LED viene impostato in base ai valori RGB ottenuti casualmente tra 0 e 255.
+    rgbled_7.show();                           // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+  }
+   
+  if(ir.keyPressed(IR_BUTTON_C)){         // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+    Serial.println("Press C.");           // Visualizzazione del messaggio "Press C." sul monitor seriale.
+    buzzer.tone(900, 300);                // Emette un suono ad una frequenza di 900 Hz per 300 ms.
+    //lineFinderSystem =! lineFinderSystem;
+    SystemControl[2] =! SystemControl[2]; // Aggiornamento del contenuto dell'elemento 2 dell'array "SystemControl".
+    int LED_R = random(0, 255);           // I valori RGB vengono impostati casualmente
+    int LED_G = random(0, 255);
+    int LED_B = random(0, 255); 
+    rgbled_7.setColor(0, LED_R, LED_G, LED_B); // Il colore di entrambi i LED viene impostato in base ai valori RGB ottenuti casualmente tra 0 e 255.
+    rgbled_7.show();                           // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+  }
+  else if(ir.keyPressed(IR_BUTTON_D)){    // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+    Serial.println("Press D.");           // Visualizzazione del messaggio "Press D." sul monitor seriale.
+    buzzer.tone(900, 300);                // Emette un suono ad una frequenza di 900 Hz per 300 ms.
+    //LightSensorSystem =! LightSensorSystem;
+    SystemControl[3] =! SystemControl[3]; // Aggiornamento del contenuto dell'elemento 2 dell'array "SystemControl".
+    rgbled_7.setColor(0, 0, 0, 0);   // Imposto a 0 i valori RGB di entrambi i LED per eliminare il disturbo causato dai LED stessi in quanto la fotoresistenza è integrata sulla scheda mCore tra i due LED.    
+    rgbled_7.show();                 // I LED vengono spenti secondo i valori impostati nella precedente istruzione.
+  }
+  
+  else if(ir.keyPressed(IR_BUTTON_E)){    // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+    Serial.println("Press E.");           // Visualizzazione del messaggio "Press E." sul monitor seriale.
+    buzzer.tone(900, 300);                // Emette un suono ad una frequenza di 900 Hz per 300 ms.
+    //RemoveObstaclesSystem =! RemoveObstaclesSystem;
+    SystemControl[4] =! SystemControl[4]; // Aggiornamento del contenuto dell'elemento 4 dell'array "SystemControl".
+  } 
+    
+  else if(ir.keyPressed(IR_BUTTON_F)){    // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+   Serial.println("Press F.");
+   buzzer.tone(900, 300);                // Emette un suono ad una frequenza di 900 Hz per 300 ms.
+   //linefinderPLUSultrasonicSystem =! linefinderPLUSultrasonicSystem;
+   SystemControl[5] =! SystemControl[5]; // Aggiornamento del contenuto dell'elemento 5 dell'array "SystemControl".
+   int LED_R = random(0, 255);           // I valori RGB vengono impostati casualmente
+   int LED_G = random(0, 255);
+   int LED_B = random(0, 255); 
+   rgbled_7.setColor(0, LED_R, LED_G, LED_B); // Il colore di entrambi i LED viene impostato in base ai valori RGB ottenuti casualmente tra 0 e 255.
+   rgbled_7.show();                           // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+  }
+
+  //if ManualControl == HIGH:
+  if(SystemControl[0] == HIGH){    // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+    if(ir.keyPressed(IR_BUTTON_UP)){ Serial.println("IR_BUTTON_Up"); buzzer.tone(900, 300); MatrixGoForward(); GoForward();}
+    else if(ir.keyPressed(IR_BUTTON_DOWN)){ Serial.println("IR_BUTTON_Down"); buzzer.tone(900, 300); MatrixGoBack(); GoBack();}
+    else if(ir.keyPressed(IR_BUTTON_LEFT)){ Serial.println("IR_BUTTON_Left"); buzzer.tone(900, 300); MatrixTurnLeft(); TurnLeft();}
+    else if(ir.keyPressed(IR_BUTTON_RIGHT)){ Serial.println("IR_BUTTON_Right"); buzzer.tone(900, 300); MatrixTurnRight(); TurnRight();}
+    else if(ir.keyPressed(IR_BUTTON_SETTING)){ Serial.println("IR_BUTTON_Setting"); buzzer.tone(900, 300); MatrixStop(); Stop();} 
+  } else {ledMx.drawStr(2,7,s); rgbled_7.setColor(0,0,0,0); rgbled_7.show();}
+
+  //if UltrasonicSensorSystem == HIGH
+  if (SystemControl[1] == HIGH){    // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:    
+    UltrasonicSensorSystem();  // Richiamo alla funzione UltrasonicSensorSystem();
+  }
+ 
+  //if lineFinderSystem == HIGH
+  if (SystemControl[2] == HIGH){     // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+    LFS (); // Richiamo alla funzione LFS();
+  } 
+
+ //if RemoveObstaclesSystem == HIGH
+  if(SystemControl[4] == HIGH){    // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+   RemoveObstacles();              // Richiamo alla funzione RemoveObstacles();
+ }
+
+  //if(linefinderPLUSultrasonicSystem == HIGH){
+  if(SystemControl[5] == HIGH){    // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+    linefinderPLUSultrasonic();    // Richiamo alla funzione linefinderPLUSultrasonic();
+  }
+
+  //if LightSensorSystem == HIGH  
+  if (SystemControl[3] == HIGH){    // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+    SmoothingLightSensor();         // Richiamo alla funzione SmoothingLightSensor();
+  }
+
+  if(analogRead(A7) == HIGH){    // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+     AmbulanceSystem =! AmbulanceSystem;  // Aggiornamento del contenuto della variabile AmbulanceSystem.
+  }
+
+  if (AmbulanceSystem){    // Se la condizione è vera allora vengono seguite le istruzioni presenti all'interno del if:
+    Ambulance();           // Richiamo alla funzione Ambulance();
+  }
+
+} // end loop
+
+/***************************************************************************IMPLEMENTAZIONE DELLE FUNZIONI***************************************************************************/
+
+void UltrasonicSensorSystem(){  // Funzione: UltrasonicSensorSystem
+    rgbled_7.setColor(0,255,0,172); // ImpostO i colori (R, G, B) per entrambi i LED  
+    rgbled_7.show();                // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+    ledMx.showNum(ultraSensor.distanceCm()); // Visualizza sulla matrice dei led il valore della distanza tra mBot e l'ostacolo
+    MyTimer(100);                   //Pausa di 100ms
+
+  if (ultraSensor.distanceCm() > 20){ // Se la condizione è vera allora vengono seguite le seguenti istruzioni
+    GoForward();  // Richiamo alla funzione GoForward();
+    } else {
+    motorLeft.run(motorSpeed);  // Di fronte a un ostacolo mBot cambia direzione
+    motorRight.run(motorSpeed);
+    MyTimer(1000);
+  }
+  if (lineFinder.readSensors() == 0){ // Nel caso in cui il sensore legga il valore zero (colore nero: scuro) allora mBot torna indietro
+    Serial.println("OMG");
+    GoBack();  // Richiamo alla funzione GoBack();
+    MyTimer(2000);  // pausa di 2000ms.
+  }  
+}
+
+// Funzione: linefinderPLUSultrasonic();
+void linefinderPLUSultrasonic(){
+     Serial.println(ultraSensor.distanceCm()); // Visualizzazione sul monitor seriale il valore eletto dal sensori ultrasuoni
+     if (ultraSensor.distanceCm() < 10){ // Se la condizione è vera allora vengono eseguiti le seguenti istruzioni.
+      if (counter == 0){ // counter = 0; 
+        Stop();          // Richiamo alla funzione Stop();
+        MyTimer(1000);   // Pausa di 1000 ms. 
+        TurnRight();     // Richiamo alla funzione TurnRight();
+        MyTimer(500);    // Pausa di 500 ms.
+
+        GoForward();     // Richiamo alla funzione GoForward();
+        MyTimer(800);    // Pausa di 800 ms.
+
+        TurnLeft();      // Richiamo alla funzione TurnLeft();
+        MyTimer(1000);   // Pausa di 1000 ms.
+
+        GoForward();     // Richiamo alla funzione GoForward();
+        MyTimer(500);    // Pausa di 5000 ms.
+
+        TurnLeft();      // Richiamo alla funzione TurnLeft();
+        MyTimer(850);    // Pausa di 850 ms.
+        buzzer.tone(488, 300); // Emette un suono alla frequenza di 488 Hz per 300 ms.
+        bool RUN = true; // variabile booleana che viene impostata al valore true (1).
+        while (RUN){
+        GoForward();     // Richiamo alla funzione GoForward();
+        if((lineFinder.readSensors() == 0)|| (lineFinder.readSensors() == 1) || (lineFinder.readSensors() == 2)){
+          RUN = false; // Se una delle condizioni si verifica allora il ciclo viene interrotto.
+         }       
+         counter = 1; // La variabile counter assume il valore di 1.
+        } // fine counter = 0         
+      }// fine ult<10
+
+      if (ultraSensor.distanceCm() < 10){  // È possibile combinare questa condizione insieme alla precedente; Li distinguo per chiarire meglio i concetti.
+        if (counter = 1){
+         Stop();          // Richiamo alla funzione Stop();
+         MyTimer(1000);   // Pausa di 1000 ms
+         TurnLeft();      // Richiamo alla funzione TurnLeft();
+         MyTimer(500);    // Pausa di 1000 ms
+
+         GoForward();     // Richiamo alla funzione GoForward();
+         MyTimer(800);    // Pausa di 800 ms
+
+         TurnRight();     // Richiamo alla funzione TurnRight();
+         MyTimer(1000);   // Pausa di 1000 ms
+
+         GoForward();     // Richiamo alla funzione GoForward();
+         MyTimer(500);    // Pausa di 500 ms
+
+         TurnRight();     // Richiamo alla funzione TurnRight();
+         MyTimer(850);    // Pausa di 850 ms
+         buzzer.tone(488, 300); // Emette un suono alla frequenza di 488 Hz per 300 ms.
+
+         bool RUN = true;
+         while (RUN){
+         GoForward();     // Richiamo alla funzione GoForward();
+         if((lineFinder.readSensors() == 0)|| (lineFinder.readSensors() == 1) || (lineFinder.readSensors() == 2)){
+          RUN = false; // Se una delle condizioni si verifica allora il ciclo viene interrotto.
+         }       
+         counter = 0;  // La variabile counter assume il valore di 0.
+        }
+      } // end of counter = 1
+    }         
+  } else {
+      LFS (); // Richiamo alla funzione LFS();
+    }
+  }
+
+//UTILIZZO DELLE VARIABILI PER SMOOTHING//
+int const fsize = 5; //Dichiaro il numero dei campioni che desidero (scelgo 5: aumentando il numero ad esempio 10/50 il segnale sara più filtrato/pulito ma sembrerà che esso sia in ritardo rispetto al segnale originale)
+int filter[fsize]; //Utilizo l'array (filter) di lunghezza fzie (pari a 5)
+int i = 0; // variabile di appoggio
+float average = 0.0; // valore di uscita (media)
+
+void SmoothingLightSensor(){
+  int s = lightsensor.read(); // lettura del segnale
+  filter[i] = s; // salvo il valore letto al interno degli elemeti dell'array
+  if (i < (fsize-1)) i++; // Se fsize -1 è minore di uno incremento l'indice i
+  else i = 0; // altrimenti la azzerò (ogni 5 (fsize) cicli)
+
+  //DOPO AVER AGGIORNATO L'ARRAY POSSO CALCOLARE LA MEDIA
+  for (int j = 0; j < fsize; j++) { // Sommo tutti i campioni al interno della variabile average trasformandoli in float
+    average += (float)filter[j];// Uguale a scrivere average = average + (float)filter[j] 
+  }
+  average = average / (float)(fsize+1); //faccio la divisione per ottenere la media
+  
+  Serial.print(s); Serial.print("\t"); Serial.println(average);
+  MyTimer(10);
+  
+  int motorSpeed = map(average, 0, 1024, 93, 255);
+  String str = "val: " + String(average) + "\tSPEED: " + String(motorSpeed); // String (val) è un sistema implicito per convertire un numero in stringa
+  Serial.println(str); // stampo la str sul monitor seriale
+
+  rgbled_7.setColor(0, 0, 0, 0);  // Impostare i colori (R, G, B) per entrambi i LED. 
+  rgbled_7.show();                // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+      
+  int sensorState = lineFinder.readSensors();  // Lettura dei valori dal sensore Segui - Linea.
+  switch(sensorState){  // In base al valore letto viene seguito il case.
+    case S1_IN_S2_IN:
+    motorLeft.run(-motorSpeed);  // Va in avanti
+    motorRight.run(motorSpeed);
+    Serial.println("Sensor 1 and 2 are inside of black line"); break;
+   
+    case S1_IN_S2_OUT: 
+    control = 1; // Aggiornamento della variabile.
+    Serial.println("Sensor 2 is outside of black line"); break;
+    
+    case S1_OUT_S2_IN:
+    control = 2; // Aggiornamento della variabile.
+    Serial.println("Sensor 1 is outside of black line"); break;
+    
+    case S1_OUT_S2_OUT:
+    if (control == 1){
+    motorLeft.stop(); // Se la condizione è vera allora mBot gira verso sinistra.
+    motorRight.run(motorSpeed);
+    }
+    if (control == 2){
+    motorRight.stop(); // Se la condizione è vera allora mBot gira verso destra.
+    motorLeft.run(-motorSpeed);
+    }
+    Serial.println("Sensor 1 and 2 are outside of black line"); break;
+    
+    default: break;
+   }
+  }
+
+
+void RemoveObstacles(){
+  if (ultraSensor.distanceCm() < 5){ // Se c'è ostacolo allora...
+    Stop(); // Si ferma per un secondo
+    MyTimer(1000);
+    motorSpeed = 90; // la sua velocità viene impostata a 90 (velocità minima ritenuta opportuna: 90)
+    GoForward(); // Va avanti per 2 secondi e rimuove l'ostacolo
+    MyTimer(2000);
+    GoBack(); // Torna indietro e riprende il suo percorso.
+    MyTimer(2000);
+  } else {motorSpeed = 120; LFS();}
+}
+
+void LFS (){ // Questa parte del sketch è già stato commentata in precedenza. (Vedi: SmoothingLightSensor();)
+             // E' possibile unire questa parte alla precedente; Li tengo separati per chiarire meglio i concetti.
+  int sensorState = lineFinder.readSensors();
+  switch(sensorState)
+  {
+    case S1_IN_S2_IN:
+    motorLeft.run(-motorSpeed);
+    motorRight.run(motorSpeed);
+    Serial.println("Sensor 1 and 2 are inside of black line"); break;
+   
+    case S1_IN_S2_OUT: 
+    control = 1;
+    Serial.println("Sensor 2 is outside of black line"); break;
+    
+    case S1_OUT_S2_IN:
+    control = 2; 
+    Serial.println("Sensor 1 is outside of black line"); break;
+    
+    case S1_OUT_S2_OUT:
+    if (control == 1){
+    motorLeft.stop(); 
+    motorRight.run(motorSpeed);
+    }
+    if (control == 2){
+    motorRight.stop();
+    motorLeft.run(-motorSpeed);
+    }
+    Serial.println("Sensor 1 and 2 are outside of black line"); break;
+    
+    default: break;
+   }
+  }
+
+
+  void Ambulance(){
+
+    if(lightsensor.read() >= 1000){ // Se la connessione è vero allora...
+      Stop();  // mBot si ferma.
+      bool RUN = true;  // la variabile RUN viene impostata a true (1).
+      while(RUN){  // Va in loop...
+        for(i = 700; i <= 1500; i = i+35){
+        buzzer.tone(i, 12);  // Emette un suono alla frequenza variabile dipendente dal valore di i per 12 ms.
+       }
+      }
+    } else {
+      motorLeft.run(-255);  // I valori impostati in modo tale che mBot si muova in cerchio
+      motorRight.run(150);  
+
+      rgbled_7.setColor(0, 0, 0, 0); // Impostazioni dei valori RGB di entrambi i LED.
+      rgbled_7.show();  //I led vengono accesi in base ai valori impostati nella precedente istruzione.
+
+      rgbled_7.setColor(2, 0, 0, 60);  // Impostazioni dei valori RGB per il LED 2.
+      rgbled_7.show();  //Il led viene accesi in base al valori impostato nella precedente istruzione (corrisponde al colore blu).
+
+      buzzer.tone(950, 600); // Buzzer emette un suono alla frequenza di 950 Hz per 600 ms.
+
+      rgbled_7.setColor(0, 0, 0, 0);  // Impostazioni dei valori RGB per il LED 2.
+      rgbled_7.show();  //I led vengono accesi in base ai valori impostati nella precedente istruzione.
+
+      rgbled_7.setColor(1, 0, 0, 60);  // Impostazioni dei valori RGB per il LED 1.
+      rgbled_7.show();  //Il led viene accesi in base al valori impostato nella precedente istruzione (corrisponde al colore blu).
+
+      buzzer.tone(700, 400); // Buzzer emette un suono alla frequenza di 700 Hz per 400 ms.
+    }
+  }
+
+
+void GoForward(){
+  if(SystemControl[0]){
+  rgbled_7.setColor(0,4,255,0);  // Impostare i colori (R, G, B) per entrambi i LED.
+  rgbled_7.show(); // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+  }
+  motorLeft.run(-motorSpeed); // Entrambi i motori sono spenti.
+  motorRight.run(motorSpeed);
+  }
+
+void TurnRight(){
+  motorRight.stop();
+  motorLeft.run(-motorSpeed);
+  if(SystemControl[0]){
+  for(int i=0; i <=1; i++){ // Le istruzioni presenti all'interno del ciclo for vengono ripetute 3 volte
+    rgbled_7.setColor(1, 250, 253, 15);  // Impostare i colori (R, G, B) per entrambi i LED.
+    rgbled_7.show(); // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+    MyTimer(500);   // Pausa di 500 ms.
+    rgbled_7.setColor(0, 0, 0, 0);  // Impostare i colori (R, G, B) per entrambi i LED.
+    rgbled_7.show(); // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+    MyTimer(500);  // Pausa di 500 ms.
+   }
+   motorRight.stop(); // Entrambi i motori sono spenti.
+   motorLeft.stop();
+  }
+  }
+  
+void TurnLeft(){
+  motorLeft.stop(); 
+  motorRight.run(motorSpeed);
+  if(SystemControl[0]){
+   for(int i=0; i <=1; i++){ // Le istruzioni presenti all'interno del ciclo for vengono ripetute 3 volte
+     rgbled_7.setColor(2, 250, 253, 15);  // Impostare i colori (R, G, B) per entrambi i LED.
+     rgbled_7.show(); // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+     MyTimer(500); // Pausa di 500 ms.
+     rgbled_7.setColor(0, 0, 0, 0);  // Impostare i colori (R, G, B) per entrambi i LED.
+     rgbled_7.show(); // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+     MyTimer(500); // Pausa di 500 ms.
+   }
+   motorRight.stop(); // Entrambi i motori sono spenti.
+   motorLeft.stop();
+  }    
+}
+
+void GoBack(){ // Funzione stop:
+  motorLeft.run(motorSpeed); // mBot va indietro.
+  motorRight.run(-motorSpeed);
+  if(SystemControl[0]){ //Se la condizione è vera allora...
+   for(int i=0; i <=2; i++){ // Le istruzioni presenti all'interno del ciclo for vengono ripetute 3 volte 
+     rgbled_7.setColor(0, 60, 0, 0);  // Impostare i colori (R, G, B) per entrambi i LED.
+     rgbled_7.show(); // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+     MyTimer(250); // Pausa di 250 ms.
+     rgbled_7.setColor(0, 0, 0, 0);  // Impostare i colori (R, G, B) per entrambi i LED.
+     rgbled_7.show(); // I LED vengono accesi secondo i valori impostati nella precedente istruzione.
+     MyTimer(250); // Pausa di 250 ms.
+    }    
+   motorRight.stop(); // Entrambi i motori sono spenti.
+   motorLeft.stop();
+  }    
+}
+
+void Stop(){ // Funzione stop:
+  motorRight.stop(); // Entrambi i motori sono spenti.
+  motorLeft.stop();
+}  
+
+void MyTimer(float milliseconds) { // Funzione MyTimer per fare pausa.
+  long endTime = millis() + milliseconds;  // Aggiornamento della variabile endTime.
+  while(millis() < endTime) SecuritySystem();  // In base alla condizione richiamo alla funzione SecuritySystem.
+}
+
+void SecuritySystem(){ // Sistema di sicurezza
+  if(ir.keyPressed(IR_BUTTON_SETTING)){ // Se viene premuto il pulsante (IR BUTTON SETTING) allora...
+    for (i=0; i<=6; i++){
+      SystemControl[6] = LOW; // Gli elementi del vettore vengono aggiornati e assumo il valore LOW.
+    }    
+    motorRight.stop(); // Entrambi i motori sono spenti.
+    motorLeft.stop();
+  }
+}
